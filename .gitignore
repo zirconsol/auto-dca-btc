@@ -1,0 +1,16 @@
+.env
+.venv
+__pycache__/
+*.pyc
+.env
+.venv
+__pycache__/
+*.pyc
+
+# Node / frontend
+frontend/node_modules/
+frontend/.next/
+frontend/.turbo/
+frontend/.swc/
+frontend/.pnpm-store/
+frontend/.vercel/

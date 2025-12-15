@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #f8fafc;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(247, 147, 26, 0.12), transparent 30%),
+    radial-gradient(circle at 80% 0%, rgba(217, 121, 4, 0.14), transparent 25%),
+    #0b0f17;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #f8fafc;
+}
+
+.break-all {
+  word-break: break-all;
+}
+
+.gradient-card {
+  background: linear-gradient(135deg, rgba(247, 147, 26, 0.12), rgba(17, 24, 39, 0.9));
+}
+
+.glass {
+  backdrop-filter: blur(10px);
+  background: rgba(15, 18, 28, 0.7);
+  border: 1px solid rgba(247, 147, 26, 0.08);
+}
+
+.fade-in {
+  animation: fadeIn 0.2s ease-in forwards;
+}
+
+.fade-out {
+  animation: fadeOut 0.2s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
