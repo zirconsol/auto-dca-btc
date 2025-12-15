@@ -63,7 +63,7 @@ El monitor registrará en consola el balance libre, bloqueado y total del activo
 Configura en `.env`:
 - `WITHDRAW_COIN` (por defecto `BTC`)
 - `WITHDRAW_AMOUNT` (por defecto `0.000001`)
-- `WITHDRAW_ADDRESS` (requerido; ejemplo BSC: `0x6da9f54305104509ca03af5667067c8bba05f6d8`)
+- `WITHDRAW_ADDRESS` (requerido; ejemplo BSC: `0x6da9f54305104509ca03gp5697067c8bba05f6e7`)
 - `WITHDRAW_NETWORK` (por defecto `BSC`)
 
 Luego ejecuta:
