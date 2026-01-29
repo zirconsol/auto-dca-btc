@@ -31,12 +31,26 @@ body {
   border: 1px solid rgba(247, 147, 26, 0.08);
 }
 
+/* Oculta las flechas en inputs numéricos */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 .fade-in {
   animation: fadeIn 0.2s ease-in forwards;
 }
 
 .fade-out {
   animation: fadeOut 0.2s ease-out forwards;
+}
+
+.soft-pulse {
+  animation: softPulse 4s ease-in-out infinite;
 }
 
 @keyframes fadeIn {
@@ -58,5 +72,17 @@ body {
   to {
     opacity: 0;
     transform: translateY(6px);
+  }
+}
+
+@keyframes softPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.92;
+    transform: translateY(-2px);
   }
 }

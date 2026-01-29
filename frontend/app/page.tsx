@@ -28,8 +28,7 @@ type Metrics = {
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-const MANUAL_WITHDRAW_ADDRESS =
-  process.env.NEXT_PUBLIC_MANUAL_WITHDRAW_ADDRESS || process.env.MANUAL_WITHDRAW_ADDRESS || "";
+const MANUAL_WITHDRAW_ADDRESS = "0x8ba1f109551bD432803012645Ac136ddd64DBA72";
 
 export default function Dashboard() {
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -47,7 +46,10 @@ export default function Dashboard() {
   const [withdrawMode, setWithdrawMode] = useState<"ARS" | "BTC">("ARS");
   const [withdrawAmount, setWithdrawAmount] = useState<string>("");
   const [withdrawError, setWithdrawError] = useState<string>("");
-  const [confirmingWithdraw, setConfirmingWithdraw] = useState(false);
+  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
+  const [withdrawInProcess, setWithdrawInProcess] = useState(false);
+  const [withdrawTransitioning, setWithdrawTransitioning] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const isSameTrades = (a: Trade[], b: Trade[]) => {
     if (a.length !== b.length) return false;
@@ -122,9 +124,18 @@ export default function Dashboard() {
     trades.length > 0 && trades[0].wallet
       ? `${trades[0].wallet.slice(0, 5)}...${trades[0].wallet.slice(-4)}`
       : "—";
-  const manualWalletLabel = MANUAL_WITHDRAW_ADDRESS
-    ? `${MANUAL_WITHDRAW_ADDRESS.slice(0, 6)}...${MANUAL_WITHDRAW_ADDRESS.slice(-4)}`
-    : "No configurada";
+  const manualWalletLabel = MANUAL_WITHDRAW_ADDRESS || "No configurada";
+  const withdrawNotice =
+    "Se ha notificado al equipo de retiros, el mismo puede tardar hasta 24hs en concretarse";
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchData();
+    } finally {
+      setTimeout(() => setRefreshing(false), 600);
+    }
+  };
   const isBusy = loading || switchingCurrency;
   const Spinner = () => (
     <span className="inline-flex h-4 w-4 border-2 border-dashed border-accent-500 rounded-full animate-spin" />
@@ -154,19 +165,26 @@ export default function Dashboard() {
         : "—";
 
   return (
-    <main className="max-w-6xl mx-auto px-6 py-10 space-y-6 text-white">
-      <header className="flex flex-col gap-2">
+    <main className="max-w-6xl mx-auto px-6 py-10 space-y-20 text-white">
+      <header className="flex flex-col gap-2 mb-8 md:mb-12">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-sm uppercase tracking-[0.2em] text-slate-300">
-              <Bitcoin className="w-4 h-4 text-accent-500" /> BTC DCA Desk
+              <Bitcoin className="w-4 h-4 text-accent-500" /> B.O.V.E.D.A
             </div>
-            <Badge variant="outline" className="border-accent-500 text-accent-500 bg-ink-100/40">
+            <Badge
+              variant="outline"
+              className="border-accent-500 text-accent-500 bg-ink-100/40 flex items-center gap-2"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-accent-500/70 animate-ping" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-accent-500" />
+              </span>
               Live
             </Badge>
           </div>
-      <div className="flex flex-wrap items-center gap-4 text-sm text-slate-200">
-        <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-200">
+            <div className="flex items-center gap-2">
           <span className="uppercase text-xs tracking-[0.2em] text-slate-400">Local Time</span>
           <span className="text-slate-100 font-mono text-sm">{mounted && localTime ? localTime : "—"}</span>
         </div>
@@ -203,17 +221,17 @@ export default function Dashboard() {
         <div className="flex flex-wrap items-baseline gap-3">
           <h1 className="text-3xl font-semibold text-white">Panel de rendimiento</h1>
           <button
-            onClick={fetchData}
+            onClick={handleRefresh}
             className="inline-flex items-center gap-2 rounded-full bg-accent-600 text-white px-4 py-2 text-sm transition hover:bg-accent-500 disabled:opacity-50"
             disabled={loading}
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
             Actualizar
           </button>
         </div>
         <p className="text-slate-300 max-w-3xl">
           Seguimiento de compras recurrentes y retiros a BSC. Muestra costo total, BTC acumulado y
-          desempeño actual del DCA.
+          desempeño actual de tu boveda.
         </p>
       </header>
 
@@ -297,15 +315,18 @@ export default function Dashboard() {
       <div className="flex justify-center">
         <button
           onClick={() => {
+            if (withdrawInProcess) return;
             setShowWithdraw(true);
-            setConfirmingWithdraw(false);
+            setShowWithdrawConfirm(false);
             setWithdrawAmount("");
             setWithdrawError("");
+            setWithdrawTransitioning(false);
             setClosingWithdraw(false);
           }}
-          className="w-full md:w-auto px-6 py-3 rounded-lg bg-accent-600 text-white font-semibold shadow-lg hover:bg-accent-500 transition"
+          className="w-full md:w-auto px-6 py-3 rounded-lg bg-accent-600 text-white font-semibold shadow-lg hover:bg-accent-500 transition disabled:opacity-60 disabled:cursor-not-allowed"
+          disabled={withdrawInProcess}
         >
-          Retirar
+          {withdrawInProcess ? "Retiro en proceso" : "Retirar"}
         </button>
       </div>
 
@@ -321,11 +342,13 @@ export default function Dashboard() {
           }}
         >
           <div
-            className={`bg-ink-100 border border-accent-500/40 rounded-xl p-6 w-full max-w-lg space-y-4 relative ${closingWithdraw ? "fade-out" : "fade-in"}`}
+            className={`bg-ink-100 border border-accent-500/40 rounded-xl p-7 w-full max-w-lg relative min-h-[360px] ${closingWithdraw ? "fade-out" : "fade-in"} ${
+              withdrawInProcess ? "flex items-center" : "space-y-5"
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              className="absolute top-3 right-3 text-slate-400 hover:text-white"
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
               onClick={() => {
                 setClosingWithdraw(true);
                 setTimeout(() => {
@@ -336,76 +359,118 @@ export default function Dashboard() {
             >
               ✕
             </button>
-            <h3 className="text-xl font-semibold text-white">Retiro manual (mock)</h3>
-            <p className="text-xs text-slate-400">
-              Destino manual (BSC): {manualWalletLabel}
-            </p>
-            <div className="flex gap-2">
-              <button
-                className={`flex-1 px-3 py-2 rounded-lg border ${
-                  withdrawMode === "ARS" ? "border-accent-500 bg-accent-500/20" : "border-slate-600"
-                }`}
-                onClick={() => setWithdrawMode("ARS")}
+            {!withdrawInProcess ? (
+              <div
+                className={cn(
+                  "transition-all duration-200",
+                  withdrawTransitioning && "opacity-0 translate-y-1 pointer-events-none"
+                )}
               >
-                Retirar en ARS
-              </button>
-              <button
-                className={`flex-1 px-3 py-2 rounded-lg border ${
-                  withdrawMode === "BTC" ? "border-accent-500 bg-accent-500/20" : "border-slate-600"
-                }`}
-                onClick={() => setWithdrawMode("BTC")}
-              >
-                Retirar en BTC
-              </button>
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm text-slate-300">Monto {withdrawMode === "ARS" ? "ARS" : "BTC"}</label>
-              <input
-                className="w-full px-3 py-2 rounded-lg bg-ink-50 border border-slate-600 text-white"
-                type="number"
-                min="0"
-                step="any"
-                value={withdrawAmount}
-                onChange={(e) => {
-                  setWithdrawAmount(e.target.value);
-                  setWithdrawError("");
-                }}
-                placeholder={withdrawMode === "ARS" ? "Ej: 10000" : "Ej: 0.001"}
-              />
-              <p className="text-xs text-slate-400">{convertedHint}</p>
-              {withdrawError && <p className="text-xs text-rose-400">{withdrawError}</p>}
-            </div>
-            <button
-              className="w-full px-4 py-3 rounded-lg bg-accent-600 text-white font-semibold hover:bg-accent-500 transition"
-              onClick={() => {
-                if (!metrics) {
-                  setWithdrawError("No hay métricas disponibles.");
-                  return;
-                }
-                const amt = numericAmount;
-                const availableBtc = metrics.total_btc;
-                const availableFiat = metrics.total_btc * metrics.current_price;
-                if (withdrawMode === "BTC" && amt > availableBtc) {
-                  setWithdrawError(
-                    `Monto superior al disponible, intente con un menor a ${availableBtc.toFixed(6)} BTC`
-                  );
-                  return;
-                }
-                if (withdrawMode === "ARS" && amt > availableFiat) {
-                  setWithdrawError(
-                    `Monto superior al disponible, intente con un menor a ${availableFiat.toLocaleString("es-AR")} ARS`
-                  );
-                  return;
-                }
-                setWithdrawError("");
-                setConfirmingWithdraw(true);
-              }}
-            >
-              Retirar {formattedWithdrawAmount()} {withdrawMode}
-            </button>
-            {confirmingWithdraw && (
-              <div className="rounded-lg border border-accent-500/40 bg-ink-50 px-4 py-3 text-sm text-slate-100">
-                Confirmar retiro por {formattedWithdrawAmount()} {withdrawMode}. (Mock sin acción real)
+                <h3 className="text-xl font-semibold text-white">Retiro manual (mock)</h3>
+                <p className="text-xs text-slate-400">
+                  Destino manual (EVM): {manualWalletLabel}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    className={`flex-1 px-3 py-2 rounded-lg border ${
+                      withdrawMode === "ARS" ? "border-accent-500 bg-accent-500/20" : "border-slate-600"
+                    }`}
+                    onClick={() => setWithdrawMode("ARS")}
+                  >
+                    Retirar en ARS
+                  </button>
+                  <button
+                    className={`flex-1 px-3 py-2 rounded-lg border ${
+                      withdrawMode === "BTC" ? "border-accent-500 bg-accent-500/20" : "border-slate-600"
+                    }`}
+                    onClick={() => setWithdrawMode("BTC")}
+                  >
+                    Retirar en BTC
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm text-slate-300">Monto {withdrawMode === "ARS" ? "ARS" : "BTC"}</label>
+                  <input
+                    className="w-full px-4 py-3 rounded-lg bg-ink-50 border border-slate-600 text-white"
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={withdrawAmount}
+                    onChange={(e) => {
+                      setWithdrawAmount(e.target.value);
+                      setWithdrawError("");
+                      setShowWithdrawConfirm(false);
+                    }}
+                    placeholder={withdrawMode === "ARS" ? "Ej: 10000" : "Ej: 0.001"}
+                  />
+                  <p className="text-xs text-slate-400">{convertedHint}</p>
+                  {withdrawError && <p className="text-xs text-rose-400">{withdrawError}</p>}
+                </div>
+                <button
+                  className="w-full px-4 py-3.5 rounded-lg bg-accent-600 text-white font-semibold hover:bg-accent-500 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  onClick={() => {
+                    if (!metrics) {
+                      setWithdrawError("No hay métricas disponibles.");
+                      return;
+                    }
+                    const amt = numericAmount;
+                    const availableBtc = metrics.total_btc;
+                    const availableFiat = metrics.total_btc * metrics.current_price;
+                    if (withdrawMode === "BTC" && amt > availableBtc) {
+                      setWithdrawError(
+                        `Monto superior al disponible, intente con un menor a ${availableBtc.toFixed(6)} BTC`
+                      );
+                      return;
+                    }
+                    if (withdrawMode === "ARS" && amt > availableFiat) {
+                      setWithdrawError(
+                        `Monto superior al disponible, intente con un menor a ${availableFiat.toLocaleString("es-AR")} ARS`
+                      );
+                      return;
+                    }
+                    setWithdrawError("");
+                    setShowWithdrawConfirm(true);
+                  }}
+                >
+                  Retirar {formattedWithdrawAmount()} {withdrawMode}
+                </button>
+                {showWithdrawConfirm && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="absolute inset-0 rounded-xl bg-black/50 backdrop-blur-sm" />
+                    <div className="relative w-[90%] max-w-sm rounded-xl border border-accent-500/30 bg-ink-50/95 p-5 text-center text-slate-100 shadow-xl fade-in">
+                      <h4 className="text-lg font-semibold text-white">Confirmar retiro?</h4>
+                      <p className="mt-3 text-sm text-slate-200 leading-relaxed">
+                        Al realizar el retiro, no se podrán realizar retiros hasta consolidado el retiro en proceso. El mismo puede
+                        demorar hasta 24hs en consolidarse.
+                      </p>
+                      <div className="mt-4 flex items-center justify-center gap-3">
+                        <button
+                          className="px-4 py-2 rounded-full bg-ink-100 text-slate-100 border border-slate-600 hover:border-slate-400 transition"
+                          onClick={() => setShowWithdrawConfirm(false)}
+                        >
+                          No
+                        </button>
+                        <button
+                          className="px-5 py-2 rounded-full bg-accent-600 text-white font-semibold hover:bg-accent-500 transition"
+                          onClick={() => {
+                            setShowWithdrawConfirm(false);
+                            setWithdrawTransitioning(true);
+                            setTimeout(() => {
+                              setWithdrawInProcess(true);
+                              setWithdrawTransitioning(false);
+                            }, 220);
+                          }}
+                        >
+                          Si
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="w-full fade-in soft-pulse">
+                <p className="text-center text-base text-slate-100 leading-relaxed max-w-md mx-auto">{withdrawNotice}</p>
               </div>
             )}
           </div>
